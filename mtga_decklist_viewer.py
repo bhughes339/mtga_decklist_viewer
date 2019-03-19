@@ -3,10 +3,11 @@
 import copy
 import re
 import sys
-from tkinter import *
+from tkinter import * # pylint: disable=unused-wildcard-import
 
 import pyperclip
 from mtga import all_mtga_cards
+from PIL import Image, ImageTk
 
 from mtga_utils import mtga_log
 
@@ -47,7 +48,7 @@ class DecklistGui:
 
         Label(card_frame, text='Missing cards:').pack(side=TOP, anchor='nw')
 
-        self.text = Text(card_frame, width=40, height=20, font='Arial 10', state=DISABLED)
+        self.text = Text(card_frame, width=40, height=30, font='Arial 10', state=DISABLED)
         self.text.pack(side=TOP, anchor='w', fill=BOTH, expand=1)
 
         deck_cost_frame = Frame(card_frame)
@@ -65,10 +66,17 @@ class DecklistGui:
 
         self.wildcard_labels = {}
 
+        images = {}
+
         for r in RARITIES:
+            filename = 'images/{0}.png'.format(r.replace(' ','_').lower())
             self.text.tag_config(r.split(' ')[0], font='Arial 10 bold', foreground=COLORS[r])
-            self.wildcard_labels[r] = Label(wildcards, text='0 {0}'.format(r))
-            self.wildcard_labels[r].pack(side=TOP, padx=5)
+            images[r] = ImageTk.PhotoImage(Image.open(filename).resize((31,26), resample=Image.BILINEAR))
+            frame = Frame(wildcards)
+            frame.pack(side=TOP, anchor='w')
+            Label(frame, image=images[r]).pack(side=LEFT)
+            self.wildcard_labels[r] = Label(frame, text='x 0')
+            self.wildcard_labels[r].pack(side=LEFT, anchor='s')
             self.deck_costs[r] = Label(deck_cost_frame, text='0', foreground=COLORS[r])
             self.deck_costs[r].pack(side=LEFT)
 
@@ -120,7 +128,7 @@ class DecklistGui:
         for r in RARITIES:
             count = sum([v for k, v in missing_cards[r].items()])
             needed = max(count - int(self.inventory[INVENTORY_KEYS[r]]), 0)
-            self.wildcard_labels[r].config(text='{0} {1}'.format(needed, r), fg=COLORS['Dimmed' if needed == 0 else r])
+            self.wildcard_labels[r].config(text='x {0}'.format(needed), fg='black' if needed > 0 else COLORS['Dimmed'])
             self.deck_costs[r].config(text=count)
 
     def find_missing_cards(self):
