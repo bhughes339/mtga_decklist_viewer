@@ -12,6 +12,10 @@ from PIL import Image, ImageTk
 
 from mtga_utils import mtga_log
 
+CONSTRUCTED_STRING = 'Constructed: {0}W {1}L ({2} {3})'
+LIMITED_STRING = 'Limited: {0}W {1}L ({2} {3})'
+
+
 class MtgaLog(mtga_log.MtgaLog):
     
     def get_log_object(self, keyword):
@@ -43,64 +47,60 @@ class DecklistGui:
         root = Tk(className='Decklist viewer')
         root.option_add('*Label.Font', 'Arial 12')
         root.config(padx=5, pady=5)
+        root.grid_columnconfigure(0, weight=1)
+        root.grid_rowconfigure(0, weight=1)
 
         decklist_frame = Frame(root)
-        decklist_frame.pack(side=TOP, fill=BOTH, expand=1)
+        decklist_frame.grid(sticky=N+S+E+W)
+        decklist_frame.grid_columnconfigure(0, weight=1)
+        decklist_frame.grid_rowconfigure(1, weight=1)
 
-        card_frame = Frame(decklist_frame)
-        card_frame.pack(side=LEFT, padx=(0, 5), fill=BOTH, expand=1)
+        Label(decklist_frame, text='Missing cards:').grid(sticky=W)
 
-        Label(card_frame, text='Missing cards:').pack(side=TOP, anchor='nw')
+        self.text = Text(decklist_frame, width=40, height=30, font='Arial 10', state=DISABLED)
+        self.text.grid(sticky=N+S+E+W)
 
-        self.text = Text(card_frame, width=40, height=30, font='Arial 10', state=DISABLED)
-        self.text.pack(side=TOP, anchor='w', fill=BOTH, expand=1)
+        self.text.tag_config('safe_set', background='#dbffe5')
 
-        side_frame = Frame(decklist_frame)
+        side_frame = Frame(root)
         side_frame.option_add('*Label.Foreground', self.COLORS['Dimmed'])
-        side_frame.pack(side=LEFT, fill=Y)
+        side_frame.grid(row=0, column=1, sticky=N)
 
         wildcards = LabelFrame(side_frame, text='Wildcards needed')
-        wildcards.pack(side=TOP)
+        wildcards.grid(sticky=N)
 
         self.wildcard_labels = {}
 
         images = {}
 
+        working_dir = os.path.split(os.path.realpath(__file__))[0]
+
         for r in self.RARITIES:
-            working_dir = os.path.split(os.path.realpath(__file__))[0]
-            imagename = '{0}.png'.format(r.replace(' ','_').lower())
+            imagename = f"{r.replace(' ','_').lower()}.png"
             filename = os.path.join(working_dir, 'images', imagename)
             self.text.tag_config(r.split(' ')[0], font='Arial 10 bold', foreground=self.COLORS[r])
             images[r] = ImageTk.PhotoImage(Image.open(filename).resize((31,26), resample=Image.BILINEAR))
             frame = Frame(wildcards)
-            frame.pack(side=TOP, anchor='w')
-            Label(frame, image=images[r]).pack(side=LEFT)
+            frame.grid(sticky=W)
+            Label(frame, image=images[r]).grid()
             self.wildcard_labels[r] = Label(frame, text='0 (0)')
-            self.wildcard_labels[r].pack(side=LEFT, anchor='s')
-        
-        self.text.tag_config('safe_set', background='#dbffe5')
-
-        control_frame = Frame(side_frame)
-        control_frame.pack(side=BOTTOM)
+            self.wildcard_labels[r].grid(row=0, column=1)
 
         self.land_ignore = IntVar()
-        Checkbutton(control_frame, text="Ignore lands", variable=self.land_ignore).pack(side=TOP, anchor='w')
+        Checkbutton(side_frame, text="Ignore lands", variable=self.land_ignore).grid(sticky=W)
 
         self.sideboard_ignore = IntVar(value=1)
-        Checkbutton(control_frame, text="Ignore sideboard", variable=self.sideboard_ignore).pack(side=TOP, anchor='w')
+        Checkbutton(side_frame, text="Ignore sideboard", variable=self.sideboard_ignore).grid(sticky=W)
 
-        self.get_button = Button(control_frame, text='Get from clipboard', state=DISABLED, command=self.from_clipboard)
-        self.get_button.pack(side=TOP)
-
-        rank_frame = Frame(root)
-        rank_frame.pack(side=TOP, anchor='w')
+        self.get_button = Button(side_frame, text='Get from clipboard', state=DISABLED, command=self.from_clipboard)
+        self.get_button.grid()
 
         self.rank_info = {
-            'constructed': StringVar(value='Constructed: 0W 0L'),
-            'limited': StringVar(value='Limited: 0W 0L')
+            'constructed': StringVar(value=CONSTRUCTED_STRING.format(0, 0, '', '')),
+            'limited': StringVar(value=LIMITED_STRING.format(0, 0, '', ''))
         }
-        Label(rank_frame, textvariable=self.rank_info['constructed'], fg='black').pack(side=TOP, anchor='w')
-        Label(rank_frame, textvariable=self.rank_info['limited'], fg='black').pack(side=TOP, anchor='w')
+        Label(root, textvariable=self.rank_info['constructed'], fg='black').grid(sticky=W)
+        Label(root, textvariable=self.rank_info['limited'], fg='black').grid(sticky=W)
 
         root.update()
         root.minsize(root.winfo_width(), root.winfo_height())
@@ -123,14 +123,14 @@ class DecklistGui:
     def read_collection(self):
         self.log = MtgaLog(mtga_log.MTGA_WINDOWS_LOG_FILE)
         rank_info = self.log.get_log_object('Event.GetCombinedRankInfo')['payload']
-        self.rank_info['constructed'].set('Constructed: {0}W {1}L ({2} {3})'.format(rank_info['constructedMatchesWon'],
-                                                                                    rank_info['constructedMatchesLost'],
-                                                                                    rank_info['constructedClass'],
-                                                                                    rank_info['constructedLevel']))
-        self.rank_info['limited'].set('Limited: {0}W {1}L ({2} {3})'.format(rank_info['limitedMatchesWon'],
-                                                                            rank_info['limitedMatchesLost'],
-                                                                            rank_info['limitedClass'],
-                                                                            rank_info['limitedLevel']))
+        self.rank_info['constructed'].set(CONSTRUCTED_STRING.format(rank_info['constructedMatchesWon'],
+                                                                    rank_info['constructedMatchesLost'],
+                                                                    rank_info['constructedClass'],
+                                                                    rank_info['constructedLevel']))
+        self.rank_info['limited'].set(LIMITED_STRING.format(rank_info['limitedMatchesWon'],
+                                                            rank_info['limitedMatchesLost'],
+                                                            rank_info['limitedClass'],
+                                                            rank_info['limitedLevel']))
         self.inventory = self.log.get_inventory()
         collection = {}
         for c in self.log.get_collection():
