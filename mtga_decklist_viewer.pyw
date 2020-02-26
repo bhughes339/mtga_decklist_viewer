@@ -12,9 +12,6 @@ from PIL import Image, ImageTk
 
 from mtga_utils import mtga_log
 
-CONSTRUCTED_STRING = 'Constructed: {0}W {1}L ({2} {3})'
-LIMITED_STRING = 'Limited: {0}W {1}L ({2} {3})'
-
 
 class MtgaLog(mtga_log.MtgaLog):
     
@@ -34,28 +31,20 @@ class DecklistGui:
         'Dimmed': '#cccccc'
     }
 
-    WILDCARD_KEYS = {
-        'Common': 'wcCommon',
-        'Uncommon': 'wcUncommon',
-        'Rare': 'wcRare',
-        'Mythic Rare': 'wcMythic'
-    }
-
-    INVENTORY_KEYWORD = "PlayerInventory.GetPlayerInventory"
-
     def __init__(self):
-        root = Tk(className='Decklist viewer')
+        root = Tk(className='decklist_viewer')
+        root.title('MTGA Decklist Viewer')
         root.option_add('*Label.Font', 'Arial 12')
         root.config(padx=5, pady=5)
         root.grid_columnconfigure(0, weight=1)
         root.grid_rowconfigure(0, weight=1)
 
-        decklist_frame = Frame(root)
+        decklist_frame = LabelFrame(root, text='Missing cards', padx=5, pady=5)
         decklist_frame.grid(sticky=N+S+E+W)
         decklist_frame.grid_columnconfigure(0, weight=1)
-        decklist_frame.grid_rowconfigure(1, weight=1)
+        decklist_frame.grid_rowconfigure(0, weight=1)
 
-        Label(decklist_frame, text='Missing cards:').grid(sticky=W)
+        # Label(decklist_frame, text='Missing cards:').grid(sticky=W)
 
         self.text = Text(decklist_frame, width=40, height=30, font='Arial 10', state=DISABLED)
         self.text.grid(sticky=N+S+E+W)
@@ -96,8 +85,8 @@ class DecklistGui:
         self.get_button.grid()
 
         self.rank_info = {
-            'constructed': StringVar(value=CONSTRUCTED_STRING.format(0, 0, '', '')),
-            'limited': StringVar(value=LIMITED_STRING.format(0, 0, '', ''))
+            'constructed': StringVar(value='Loading Constructed rank info...'),
+            'limited': StringVar(value='Loading Limited rank info...')
         }
         Label(root, textvariable=self.rank_info['constructed'], fg='black').grid(sticky=W)
         Label(root, textvariable=self.rank_info['limited'], fg='black').grid(sticky=W)
@@ -115,22 +104,18 @@ class DecklistGui:
 
         root.mainloop()
 
+
     def from_clipboard(self):
         self.text.config(state=NORMAL)
         self.find_missing_cards()
         self.text.config(state=DISABLED)
 
+
     def read_collection(self):
         self.log = MtgaLog(mtga_log.MTGA_WINDOWS_LOG_FILE)
         rank_info = self.log.get_log_object('Event.GetCombinedRankInfo')['payload']
-        self.rank_info['constructed'].set(CONSTRUCTED_STRING.format(rank_info['constructedMatchesWon'],
-                                                                    rank_info['constructedMatchesLost'],
-                                                                    rank_info['constructedClass'],
-                                                                    rank_info['constructedLevel']))
-        self.rank_info['limited'].set(LIMITED_STRING.format(rank_info['limitedMatchesWon'],
-                                                            rank_info['limitedMatchesLost'],
-                                                            rank_info['limitedClass'],
-                                                            rank_info['limitedLevel']))
+        self.rank_info['constructed'].set(rank_string('constructed', rank_info))
+        self.rank_info['limited'].set(rank_string('limited', rank_info))
         self.inventory = self.log.get_inventory()
         collection = {}
         for c in self.log.get_collection():
@@ -147,12 +132,13 @@ class DecklistGui:
         else:
             self.get_button.config(text='Error reading MTGA log')
 
+
     def update_wildcards(self, missing_cards={r:{} for r in RARITIES}):
         for r in self.RARITIES:
             count = sum([v['needed'] for k, v in missing_cards[r].items()])
-            # stored = int(self.inventory[self.WILDCARD_KEYS[r]])
             stored = int(self.inventory.wildcards[r])
             self.wildcard_labels[r].config(text='{0} ({1})'.format(count, stored), fg='red' if count > stored else 'black')
+
 
     def find_missing_cards(self):
         decklist = pyperclip.paste()
@@ -192,6 +178,7 @@ class DecklistGui:
         self.update_text(missing_cards)
         self.update_wildcards(missing_cards)
 
+
     def update_text(self, missing_cards):
         self.text.delete('1.0', END)
         for r in self.RARITIES:
@@ -213,6 +200,18 @@ class DecklistGui:
             if match:
                 if int(match[0]) > this_year and i['code']:
                     self.safe_sets.append(i['code'])
+
+
+def rank_string(fmt, rank_info):
+    fmt = fmt.lower()
+    rank_string = (
+        f'{fmt.title()}:'
+        f" {rank_info[f'{fmt}MatchesWon']}W"
+        f" {rank_info[f'{fmt}MatchesLost']}L"
+        f" ({rank_info[f'{fmt}Class']}"
+        f" {rank_info[f'{fmt}Level']})"
+    )
+    return rank_string
 
 
 def main():
