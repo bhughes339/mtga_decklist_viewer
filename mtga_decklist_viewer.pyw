@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import copy
-import re
-import sys
 import os
-from tkinter import * # pylint: disable=unused-wildcard-import
+import re
+from tkinter import *  # pylint: disable=unused-wildcard-import
 
 import pyperclip
 from mtga import all_mtga_cards
@@ -137,14 +135,13 @@ class DecklistGui:
         for r in self.RARITIES:
             count = sum([v['needed'] for k, v in missing_cards[r].items()])
             stored = int(self.inventory.wildcards[r])
-            self.wildcard_labels[r].config(text='{0} ({1})'.format(count, stored), fg='red' if count > stored else 'black')
+            self.wildcard_labels[r].config(text=f'{count} ({stored})', fg='red' if count > stored else 'black')
 
 
     def find_missing_cards(self):
         decklist = pyperclip.paste()
-        missing_cards = dict([(x, dict()) for x in self.RARITIES])
-        card_found = False
-        sideboard = False
+        missing_cards = {r:{} for r in self.RARITIES}
+        card_found = sideboard = False
         for line in decklist.splitlines():
             if not line.strip():
                 if card_found and not sideboard:
