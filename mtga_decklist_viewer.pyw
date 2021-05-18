@@ -42,8 +42,6 @@ class DecklistGui:
         decklist_frame.grid_columnconfigure(0, weight=1)
         decklist_frame.grid_rowconfigure(0, weight=1)
 
-        # Label(decklist_frame, text='Missing cards:').grid(sticky=W)
-
         self.text = Text(decklist_frame, width=40, height=30, font='Arial 10', state=DISABLED)
         self.text.grid(sticky=N+S+E+W)
 
@@ -110,19 +108,22 @@ class DecklistGui:
 
 
     def read_collection(self):
-        self.log = MtgaLog(mtga_log.MTGA_WINDOWS_LOG_FILE)
+        self.log = MtgaLog()
         rank_info = self.log.get_log_object('Event.GetCombinedRankInfo')['payload']
-        self.rank_info['constructed'].set(rank_string('constructed', rank_info))
-        self.rank_info['limited'].set(rank_string('limited', rank_info))
+        self.rank_info['constructed'].set(self.rank_string('constructed', rank_info))
+        self.rank_info['limited'].set(self.rank_string('limited', rank_info))
         self.inventory = self.log.get_inventory()
         collection = {}
         for c in self.log.get_collection():
             # c format: [mtga_id, Card object, count]
-            name = c[1].pretty_name
             try:
-                collection[name] += int(c[2])
+                name = c[1].pretty_name
+                try:
+                    collection[name] += int(c[2])
+                except:
+                    collection[name] = int(c[2])
             except:
-                collection[name] = int(c[2])
+                pass
         self.collection = collection
         if len(collection) > 0:
             self.get_button.config(state=NORMAL)
@@ -143,11 +144,13 @@ class DecklistGui:
         missing_cards = {r:{} for r in self.RARITIES}
         card_found = sideboard = False
         for line in decklist.splitlines():
-            if not line.strip():
-                if card_found and not sideboard:
-                    if self.sideboard_ignore.get() == 1:
-                        break
-                    sideboard = True
+            cardline = line.strip().lower()
+            if not cardline or cardline in ['companion', 'deck']:
+                continue
+            if cardline == 'sideboard':
+                if self.sideboard_ignore.get() == 1:
+                    break
+                sideboard = True
                 continue
             try:
                 req, card = line.strip().lower().split(' ', 1)
@@ -185,7 +188,7 @@ class DecklistGui:
     
 
     def get_safe_sets(self):
-        import requests, datetime
+        import datetime, requests
         this_year = int(datetime.datetime.now().year)
         self.safe_sets = []
         r = requests.get('https://whatsinstandard.com/api/v6/standard.json')
@@ -199,16 +202,17 @@ class DecklistGui:
                     self.safe_sets.append(i['code'])
 
 
-def rank_string(fmt, rank_info):
-    fmt = fmt.lower()
-    rank_string = (
-        f'{fmt.title()}:'
-        f" {rank_info[f'{fmt}MatchesWon']}W"
-        f" {rank_info[f'{fmt}MatchesLost']}L"
-        f" ({rank_info[f'{fmt}Class']}"
-        f" {rank_info[f'{fmt}Level']})"
-    )
-    return rank_string
+    @staticmethod
+    def rank_string(fmt, rank_info):
+        fmt = fmt.lower()
+        rank_string = (
+            f'{fmt.title()}:'
+            f" {rank_info[f'{fmt}MatchesWon']}W"
+            f" {rank_info[f'{fmt}MatchesLost']}L"
+            f" ({rank_info[f'{fmt}Class']}"
+            f" {rank_info[f'{fmt}Level']})"
+        )
+        return rank_string
 
 
 def main():

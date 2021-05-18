@@ -1,0 +1,6 @@
+[submodule "mtga_utils"]
+	path = mtga_utils
+	url = https://github.com/bhughes339/mtga-utils
+[submodule "mtga"]
+	path = mtga
+	url = https://github.com/bhughes339/python-mtga

@@ -1,6 +1,2 @@
-mtga_decklist_viewer.bat
-mtga_decklist_viewer.spec
 __pycache__
 .vscode
-build
-dist
